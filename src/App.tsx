@@ -6,21 +6,23 @@ import type {
   LaborProductionRates,
   CompanyProfile,
   ClientInfo,
-} from './engine/types';
+} from '@/engine/types';
 import {
   calculateTakeoff,
   DEFAULT_PROJECT_SETTINGS,
   DEFAULT_MATERIAL_RATES_IMPERIAL,
   DEFAULT_MATERIAL_RATES_METRIC,
   DEFAULT_LABOR_RATES,
-} from './engine/takeoff';
-import { Header } from './components/Header';
-import { RoomCard } from './components/RoomCard';
-import { TakeoffSummary } from './components/TakeoffSummary';
-import { ProposalView } from './components/ProposalView';
-import { RatesModal } from './components/RatesModal';
-import { ProLicenseModal } from './components/ProLicenseModal';
-import { generateQuotePDF } from './utils/pdfGenerator';
+} from '@/engine/takeoff';
+import { Header } from '@/components/Header';
+import { RoomCard } from '@/components/RoomCard';
+import { TakeoffSummary } from '@/components/TakeoffSummary';
+import { ProposalView } from '@/components/ProposalView';
+import { SettingsSheet } from '@/components/SettingsSheet';
+import { ProLicenseModal } from '@/components/ProLicenseModal';
+import { generateQuotePDF } from '@/utils/pdfGenerator';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { Plus, Calculator, FileText, CheckCircle2 } from 'lucide-react';
 
 const INITIAL_ROOMS: Room[] = [
@@ -117,7 +119,7 @@ export function App() {
   });
 
   const [activeTab, setActiveTab] = useState<'takeoff' | 'proposal'>('takeoff');
-  const [isRatesModalOpen, setIsRatesModalOpen] = useState(false);
+  const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false);
   const [isProModalOpen, setIsProModalOpen] = useState(false);
 
   // Sync to localStorage
@@ -210,7 +212,7 @@ export function App() {
     setRooms((prev) => prev.filter((r) => r.id !== id));
   };
 
-  // Core Pure Takeoff Result
+  // Core Pure Takeoff Result (BOM & labor math untouched)
   const takeoffResult = useMemo(() => {
     return calculateTakeoff(rooms, settings, materialRates, laborRates);
   }, [rooms, settings, materialRates, laborRates]);
@@ -226,89 +228,72 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-      {/* Top Header */}
+    <div className="min-h-screen bg-[#f8fafc] text-zinc-900 flex flex-col font-sans">
+      {/* Decluttered SaaS Top Bar */}
       <Header
-        unitSystem={settings.unitSystem}
-        onUnitChange={handleUnitChange}
-        currency={settings.currency}
-        onCurrencyChange={(c) => setSettings((prev) => ({ ...prev, currency: c }))}
         isPro={isPro}
         onOpenProModal={() => setIsProModalOpen(true)}
-        onOpenRatesModal={() => setIsRatesModalOpen(true)}
+        onOpenSettingsSheet={() => setIsSettingsSheetOpen(true)}
         onDownloadPDF={handleDownloadPDF}
       />
 
-      {/* Main Container */}
+      {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
-        {/* Navigation Tabs */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
-          <div className="flex items-center gap-1.5 bg-slate-900 p-1 rounded-xl border border-slate-800">
-            <button
-              type="button"
-              onClick={() => setActiveTab('takeoff')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                activeTab === 'takeoff'
-                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Calculator className="w-4 h-4" />
-              <span>Internal Takeoff & BOM ({rooms.length} Rooms)</span>
-            </button>
+        <Tabs
+          value={activeTab}
+          onValueChange={(val) => setActiveTab(val as 'takeoff' | 'proposal')}
+          className="space-y-6"
+        >
+          {/* Navigation Bar & Real-Time Executive Metric Badge */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-zinc-200 pb-3">
+            <TabsList className="bg-zinc-100 p-0.5 border border-zinc-200">
+              <TabsTrigger value="takeoff" className="gap-1.5 font-medium">
+                <Calculator className="h-3.5 w-3.5" />
+                <span>Internal Takeoff & BOM ({rooms.length})</span>
+              </TabsTrigger>
+              <TabsTrigger value="proposal" className="gap-1.5 font-medium">
+                <FileText className="h-3.5 w-3.5" />
+                <span>Client Bid Proposal</span>
+              </TabsTrigger>
+            </TabsList>
 
-            <button
-              type="button"
-              onClick={() => setActiveTab('proposal')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                activeTab === 'proposal'
-                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <FileText className="w-4 h-4" />
-              <span>Client Bid Proposal</span>
-            </button>
+            <div className="flex items-center gap-2.5 text-xs text-zinc-500 tabular-nums">
+              <span>
+                Direct: <strong className="text-zinc-900 font-semibold">{settings.currency}{takeoffResult.subcontractorDirectCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
+              </span>
+              <span className="text-zinc-300">•</span>
+              <span>
+                Bid: <strong className="text-zinc-900 font-bold">{settings.currency}{takeoffResult.totalBidPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
+              </span>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3 text-xs text-slate-400">
-            <span>
-              Direct Cost: <strong className="text-white">{settings.currency}{takeoffResult.subcontractorDirectCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
-            </span>
-            <span className="text-slate-600">•</span>
-            <span>
-              Bid Price: <strong className="text-amber-400 font-bold">{settings.currency}{takeoffResult.totalBidPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
-            </span>
-          </div>
-        </div>
-
-        {/* Tab 1: Internal Takeoff & Multi-Room Engine */}
-        {activeTab === 'takeoff' && (
-          <div className="space-y-6">
-            {/* Multi-Room Takeoff Assembly */}
+          {/* Tab 1: Internal Takeoff & Multi-Room Engine */}
+          <TabsContent value="takeoff" className="space-y-6 mt-0">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-base font-bold text-white tracking-tight">
-                    Multi-Room Assembly & GA-214 Finish Engine
+                  <h2 className="text-sm font-semibold text-zinc-900 tracking-tight">
+                    Multi-Room Assembly & Gypsum Finish Schedules
                   </h2>
-                  <p className="text-xs text-slate-400">
-                    Trade opening rule: Doors & windows &lt; 36 sq ft are hung solid (0 board deduction); deducted from paint.
+                  <p className="text-xs text-zinc-500 mt-0.5">
+                    GA-214 finish specifications and physical bundle allocation.
                   </p>
                 </div>
 
-                <button
+                <Button
                   type="button"
+                  size="sm"
                   onClick={addRoom}
-                  className="flex items-center gap-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-white font-semibold px-3.5 py-2 rounded-xl border border-slate-700 transition-colors shadow-sm"
+                  className="font-medium gap-1.5"
                 >
-                  <Plus className="w-4 h-4 text-amber-400" />
+                  <Plus className="h-3.5 w-3.5" />
                   <span>Add Room</span>
-                </button>
+                </Button>
               </div>
 
               {/* Room Cards List */}
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {rooms.map((room, idx) => (
                   <RoomCard
                     key={room.id}
@@ -325,56 +310,58 @@ export function App() {
 
             {/* Comprehensive Takeoff Summary & BOM */}
             <TakeoffSummary takeoff={takeoffResult} settings={settings} />
-          </div>
-        )}
+          </TabsContent>
 
-        {/* Tab 2: Client-Facing Bid Proposal */}
-        {activeTab === 'proposal' && (
-          <ProposalView
-            takeoff={takeoffResult}
-            company={company}
-            client={client}
-            onClientUpdate={setClient}
-            settings={settings}
-            isPro={isPro}
-            onOpenProModal={() => setIsProModalOpen(true)}
-            onDownloadPDF={handleDownloadPDF}
-          />
-        )}
+          {/* Tab 2: Client-Facing Bid Proposal */}
+          <TabsContent value="proposal" className="mt-0">
+            <ProposalView
+              takeoff={takeoffResult}
+              company={company}
+              client={client}
+              onClientUpdate={setClient}
+              settings={settings}
+              isPro={isPro}
+              onOpenProModal={() => setIsProModalOpen(true)}
+              onDownloadPDF={handleDownloadPDF}
+            />
+          </TabsContent>
+        </Tabs>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-800/80 bg-slate-900/60 py-6 mt-12 text-center text-xs text-slate-400 px-4">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-200">DrywallPro Estimator</span>
+      {/* Clean Subcontractor SaaS Footer */}
+      <footer className="border-t border-zinc-200 bg-white py-5 mt-12 text-center text-xs text-zinc-500 px-4">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2 text-zinc-700">
+            <span className="font-semibold text-zinc-900">DrywallPro Estimator</span>
             <span>•</span>
-            <span>100% Client-Side Trade Takeoff Software</span>
+            <span>Client-Side Commercial Takeoff Platform</span>
           </div>
-          <div className="flex items-center gap-4 text-slate-400 text-[11px]">
+          <div className="flex items-center gap-3 text-zinc-500 text-[11px]">
             <span>Gypsum Association GA-214 Standards</span>
             <span>•</span>
             <span>ASTM C840 Assembly Guidelines</span>
             <span>•</span>
-            <span className="text-emerald-400 flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5" /> Static Zero-Backend Deploy
+            <span className="text-zinc-700 flex items-center gap-1 font-medium">
+              <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Static Edge Deploy
             </span>
           </div>
         </div>
       </footer>
 
-      {/* Modals */}
-      <RatesModal
-        isOpen={isRatesModalOpen}
-        onClose={() => setIsRatesModalOpen(false)}
+      {/* Slide-over Drawer for Settings & Rate Card */}
+      <SettingsSheet
+        isOpen={isSettingsSheetOpen}
+        onOpenChange={setIsSettingsSheetOpen}
+        settings={settings}
+        onSettingsChange={setSettings}
         materialRates={materialRates}
         onMaterialRatesChange={setMaterialRates}
         laborRates={laborRates}
         onLaborRatesChange={setLaborRates}
-        settings={settings}
-        onSettingsChange={setSettings}
+        onUnitChange={handleUnitChange}
       />
 
+      {/* Pro License Modal */}
       <ProLicenseModal
         isOpen={isProModalOpen}
         onClose={() => setIsProModalOpen(false)}

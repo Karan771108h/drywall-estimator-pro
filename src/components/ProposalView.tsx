@@ -4,12 +4,23 @@ import type {
   CompanyProfile,
   ClientInfo,
   ProjectSettings,
-} from '../engine/types';
+} from '@/engine/types';
 import {
   FINISH_LEVEL_DESCRIPTIONS,
   SUBSTRATE_NAMES,
-} from '../engine/types';
-import { FileDown, Building, FileText, CheckCircle, ShieldAlert, Sparkles } from 'lucide-react';
+} from '@/engine/types';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from '@/components/ui/table';
+import { FileDown, FileText, CheckCircle2, ShieldAlert } from 'lucide-react';
 
 interface ProposalViewProps {
   takeoff: TakeoffResult;
@@ -54,130 +65,139 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
-      {/* Client & Proposal Metadata Form Card */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
-        <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-3">
-          <FileText className="w-4 h-4 text-amber-400" />
-          Proposal Client & Project Metadata
-        </h3>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-          <div>
-            <label className="block text-slate-400 mb-1 font-medium">Client / General Contractor</label>
-            <input
-              type="text"
-              value={client.clientName}
-              onChange={(e) => onClientUpdate({ ...client, clientName: e.target.value })}
-              placeholder="e.g. Acme Builders / John Doe"
-              className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-amber-400"
-            />
+      {/* Proposal Metadata Editor Card */}
+      <Card>
+        <CardContent className="p-4 sm:p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-semibold text-zinc-900 uppercase tracking-wider flex items-center gap-1.5">
+              <FileText className="h-3.5 w-3.5 text-zinc-500" />
+              Proposal Details & Client Metadata
+            </h3>
+            <Button
+              type="button"
+              size="sm"
+              onClick={onDownloadPDF}
+              className="h-7 text-xs font-semibold gap-1.5"
+            >
+              <FileDown className="h-3.5 w-3.5" />
+              <span>Download PDF Quote</span>
+            </Button>
           </div>
 
-          <div>
-            <label className="block text-slate-400 mb-1 font-medium">Project Site Address</label>
-            <input
-              type="text"
-              value={client.projectAddress}
-              onChange={(e) => onClientUpdate({ ...client, projectAddress: e.target.value })}
-              placeholder="e.g. 742 Evergreen Terr, Springfield"
-              className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-amber-400"
-            />
-          </div>
-
-          <div>
-            <label className="block text-slate-400 mb-1 font-medium">Proposal Reference #</label>
-            <input
-              type="text"
-              value={client.quoteNumber}
-              onChange={(e) => onClientUpdate({ ...client, quoteNumber: e.target.value })}
-              className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-amber-400"
-            />
-          </div>
-
-          <div>
-            <label className="block text-slate-400 mb-1 font-medium">Validity Period</label>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min="7"
-                max="90"
-                value={client.validDays}
-                onChange={(e) => onClientUpdate({ ...client, validDays: parseInt(e.target.value) || 30 })}
-                className="w-20 bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-amber-400"
-              />
-              <span className="text-slate-400">days</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Free Mode Notice / Pro Banner */}
-      {!isPro ? (
-        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
             <div>
-              <div className="text-xs font-bold text-amber-300">Free Mode: PDF Quote Includes Watermark</div>
-              <div className="text-[11px] text-slate-400">
-                Unlock Pro to add your contractor logo, custom license number, phone, email, and generate clean un-watermarked PDFs.
+              <label className="block text-zinc-600 mb-1 text-[11px] font-medium">Client / General Contractor</label>
+              <Input
+                type="text"
+                value={client.clientName}
+                onChange={(e) => onClientUpdate({ ...client, clientName: e.target.value })}
+                placeholder="e.g. Acme Builders / John Doe"
+              />
+            </div>
+
+            <div>
+              <label className="block text-zinc-600 mb-1 text-[11px] font-medium">Project Site Address</label>
+              <Input
+                type="text"
+                value={client.projectAddress}
+                onChange={(e) => onClientUpdate({ ...client, projectAddress: e.target.value })}
+                placeholder="e.g. 742 Evergreen Terr, Springfield"
+              />
+            </div>
+
+            <div>
+              <label className="block text-zinc-600 mb-1 text-[11px] font-medium">Proposal Reference #</label>
+              <Input
+                type="text"
+                value={client.quoteNumber}
+                onChange={(e) => onClientUpdate({ ...client, quoteNumber: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label className="block text-zinc-600 mb-1 text-[11px] font-medium">Validity Period</label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min="7"
+                  max="90"
+                  value={client.validDays}
+                  onChange={(e) => onClientUpdate({ ...client, validDays: parseInt(e.target.value) || 30 })}
+                  className="tabular-nums"
+                />
+                <span className="text-zinc-500 text-xs">days</span>
               </div>
             </div>
           </div>
-          <button
+        </CardContent>
+      </Card>
+
+      {/* Free Mode Notice / Pro Banner */}
+      {!isPro ? (
+        <div className="rounded-[6px] border border-amber-200 bg-amber-50/60 p-3.5 px-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5">
+            <ShieldAlert className="h-4 w-4 text-amber-700 shrink-0" />
+            <div>
+              <span className="font-semibold text-amber-900">Free Mode:</span>{' '}
+              <span className="text-amber-800">Generated PDF quotes contain a diagonal watermark.</span>
+            </div>
+          </div>
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={onOpenProModal}
-            className="flex items-center gap-1.5 text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-3.5 py-1.5 rounded-lg shrink-0 transition-colors"
+            className="border-amber-300 bg-white text-amber-900 hover:bg-amber-100/60 h-7 text-xs font-medium"
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Unlock Pro Branding</span>
-          </button>
+            Unlock Pro (Custom Logo & Clean PDFs)
+          </Button>
         </div>
       ) : (
-        <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 px-4 flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2 text-emerald-400 font-medium">
-            <CheckCircle className="w-4 h-4 text-emerald-400" />
+        <div className="rounded-[6px] border border-emerald-200 bg-emerald-50/60 p-3 px-4 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2 text-emerald-900 font-medium">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
             <span>Pro Mode Active: Custom Contractor Logo & Clean PDFs Unlocked</span>
           </div>
           <button
             type="button"
             onClick={onOpenProModal}
-            className="text-emerald-300 hover:underline text-[11px]"
+            className="text-emerald-800 hover:underline text-[11px] font-medium cursor-pointer"
           >
             Edit Company Profile
           </button>
         </div>
       )}
 
-      {/* Proposal Sheet Preview Paper */}
-      <div className="bg-white text-slate-900 rounded-xl shadow-2xl p-6 sm:p-10 border border-slate-300 relative overflow-hidden font-sans">
+      {/* Printable Proposal Document Sheet */}
+      <div className="bg-white rounded-[6px] shadow-sm p-6 sm:p-10 border border-zinc-200 relative overflow-hidden font-sans">
         {/* Free Mode Watermark Overlay on Preview */}
         {!isPro && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-10">
-            <div className="text-slate-200 text-5xl sm:text-6xl font-black rotate-[-35deg] tracking-widest text-center opacity-60 leading-tight">
+            <div className="text-zinc-200 text-5xl sm:text-6xl font-black rotate-[-35deg] tracking-widest text-center opacity-40 leading-tight">
               DRYWALLPRO<br />FREE ESTIMATE
             </div>
           </div>
         )}
 
         {/* Paper Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start gap-4 pb-6 border-b border-slate-200">
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-4 pb-6 border-b border-zinc-200">
           <div className="flex items-start gap-4">
             {isPro && company.logoDataUrl ? (
               <img
                 src={company.logoDataUrl}
                 alt="Company Logo"
-                className="w-20 h-14 object-contain rounded border border-slate-200"
+                className="w-16 h-12 object-contain rounded-[4px] border border-zinc-200"
               />
             ) : (
-              <div className="w-12 h-12 rounded-lg bg-slate-900 flex items-center justify-center text-amber-400 font-black text-xl">
+              <div className="w-10 h-10 rounded-[5px] bg-zinc-900 flex items-center justify-center text-white font-bold text-sm">
                 DP
               </div>
             )}
             <div>
-              <h2 className="text-xl font-bold text-slate-900 leading-tight">
+              <h2 className="text-lg font-bold text-zinc-900 leading-tight">
                 {isPro && company.companyName ? company.companyName : 'DRYWALL & PAINT SUBCONTRACTORS'}
               </h2>
-              <div className="text-xs text-slate-500 mt-1 space-y-0.5">
+              <div className="text-xs text-zinc-500 mt-1 space-y-0.5">
                 {isPro && company.licenseNumber && (
                   <div>State Contractor License: #{company.licenseNumber}</div>
                 )}
@@ -187,10 +207,10 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
             </div>
           </div>
 
-          <div className="sm:text-right bg-slate-50 border border-slate-200 rounded-lg p-3 min-w-[180px]">
-            <div className="text-xs font-bold text-slate-900 uppercase tracking-wider">TRADE BID PROPOSAL</div>
-            <div className="text-xs text-slate-600 mt-1">
-              <div>Ref #: <strong>{client.quoteNumber || 'EST-1042'}</strong></div>
+          <div className="sm:text-right bg-zinc-50 border border-zinc-200/80 rounded-[5px] p-3 min-w-[170px]">
+            <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">TRADE BID PROPOSAL</div>
+            <div className="text-xs text-zinc-700 mt-1 space-y-0.5">
+              <div>Ref: <strong className="font-mono">{client.quoteNumber || 'EST-1042'}</strong></div>
               <div>Date: {client.quoteDate || new Date().toLocaleDateString()}</div>
               <div>Valid: {client.validDays || 30} Days</div>
             </div>
@@ -198,137 +218,136 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
         </div>
 
         {/* Client & Project Info */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4 border-b border-slate-200 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4 border-b border-zinc-200 text-xs">
           <div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Prepared For</div>
-            <div className="font-bold text-slate-900 text-sm">{client.clientName || 'General Contractor / Client'}</div>
-            <div className="text-slate-600">{client.projectAddress || 'Jobsite Location'}</div>
+            <div className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-0.5">Prepared For</div>
+            <div className="font-bold text-zinc-900 text-sm">{client.clientName || 'General Contractor / Client'}</div>
+            <div className="text-zinc-600 mt-0.5">{client.projectAddress || 'Jobsite Location'}</div>
           </div>
           <div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Takeoff Parameters</div>
-            <div className="text-slate-700">
-              Total Board Scope: <strong>{takeoff.totalBoardArea.toLocaleString()} {areaUnit}</strong>
+            <div className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-0.5">Takeoff Parameters</div>
+            <div className="text-zinc-700">
+              Board Scope: <strong className="tabular-nums">{takeoff.totalBoardArea.toLocaleString()} {areaUnit}</strong>
             </div>
-            <div className="text-slate-700">
-              Net Architectural Paint: <strong>{takeoff.totalPaintArea.toLocaleString()} {areaUnit}</strong>
+            <div className="text-zinc-700">
+              Net Architectural Paint: <strong className="tabular-nums">{takeoff.totalPaintArea.toLocaleString()} {areaUnit}</strong>
             </div>
           </div>
         </div>
 
         {/* Section 1: Scope of Work by Room Table */}
         <div className="my-6">
-          <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <Building className="w-3.5 h-3.5 text-slate-600" />
+          <h4 className="text-xs font-semibold text-zinc-900 uppercase tracking-wider mb-2">
             1. Scope of Work & Gypsum Specifications by Room
           </h4>
 
-          <div className="overflow-x-auto border border-slate-200 rounded-lg">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-100 text-slate-700 uppercase text-[10px] border-b border-slate-200">
-                <tr>
-                  <th className="px-3 py-2">Room / Area</th>
-                  <th className="px-3 py-2">Board Scope</th>
-                  <th className="px-3 py-2">Substrate Specification</th>
-                  <th className="px-3 py-2">GA-214 Finish</th>
-                  <th className="px-3 py-2">Drywall Board Allocation</th>
-                  <th className="px-3 py-2">Corner Bead</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {takeoff.rooms.map((r, i) => (
-                  <tr key={r.roomId} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}>
-                    <td className="px-3 py-2 font-medium text-slate-900">{r.roomName}</td>
-                    <td className="px-3 py-2 text-slate-700">{r.totalBoardArea} {areaUnit}</td>
-                    <td className="px-3 py-2 text-slate-700">{SUBSTRATE_NAMES[r.substrate].split(' ')[0]} {r.substrate === 'type_x_five_eighth' ? '5/8" Type X' : '1/2"'}</td>
-                    <td className="px-3 py-2">
-                      <span className="font-medium text-slate-900">Level {r.finishLevel}</span>{' '}
-                      <span className="text-[10px] text-slate-500">({FINISH_LEVEL_DESCRIPTIONS[r.finishLevel].tag})</span>
-                    </td>
-                    <td className="px-3 py-2 text-slate-700 font-mono text-[11px]">{r.sheetsNeeded} sheets ({r.recommendedBoardLength.split(' - ')[0]})</td>
-                    <td className="px-3 py-2 text-slate-700">{r.cornerBeadLinear} {unitLabel}</td>
-                  </tr>
+          <div className="border border-zinc-200 rounded-[5px] overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Room / Area</TableHead>
+                  <TableHead>Board Scope</TableHead>
+                  <TableHead>Substrate Specification</TableHead>
+                  <TableHead>GA-214 Finish</TableHead>
+                  <TableHead>Drywall Allocation</TableHead>
+                  <TableHead>Corner Bead</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {takeoff.rooms.map((r) => (
+                  <TableRow key={r.roomId}>
+                    <TableCell className="font-medium text-zinc-900">{r.roomName}</TableCell>
+                    <TableCell className="tabular-nums text-zinc-700">{r.totalBoardArea} {areaUnit}</TableCell>
+                    <TableCell className="text-zinc-700">{SUBSTRATE_NAMES[r.substrate].split(' ')[0]} {r.substrate === 'type_x_five_eighth' ? '5/8" Type X' : '1/2"'}</TableCell>
+                    <TableCell>
+                      <span className="font-medium text-zinc-900">Level {r.finishLevel}</span>{' '}
+                      <span className="text-[10px] text-zinc-500">({FINISH_LEVEL_DESCRIPTIONS[r.finishLevel].tag})</span>
+                    </TableCell>
+                    <TableCell className="font-mono text-[11px] tabular-nums text-zinc-700">{r.sheetsNeeded} sheets ({r.recommendedBoardLength.split(' - ')[0]})</TableCell>
+                    <TableCell className="tabular-nums text-zinc-700">{r.cornerBeadLinear} {unitLabel}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </div>
 
         {/* Section 2: Schedule of Values */}
         <div className="my-6">
-          <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2">
+          <h4 className="text-xs font-semibold text-zinc-900 uppercase tracking-wider mb-2">
             2. Schedule of Values (Divisions 09 29 00 & 09 91 00)
           </h4>
 
-          <div className="overflow-x-auto border border-slate-200 rounded-lg">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-100 text-slate-700 uppercase text-[10px] border-b border-slate-200">
-                <tr>
-                  <th className="px-3 py-2 w-12 text-center">Item</th>
-                  <th className="px-3 py-2">Division Scope & Description</th>
-                  <th className="px-3 py-2">Specification Summary</th>
-                  <th className="px-3 py-2 text-right">Amount</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                <tr>
-                  <td className="px-3 py-2.5 text-center font-bold text-slate-400">01</td>
-                  <td className="px-3 py-2.5 font-medium text-slate-900">
+          <div className="border border-zinc-200 rounded-[5px] overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12 text-center">Item</TableHead>
+                  <TableHead>Division Scope & Description</TableHead>
+                  <TableHead>Specification Summary</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell className="text-center font-bold text-zinc-400">01</TableCell>
+                  <TableCell className="font-medium text-zinc-900">
                     Gypsum Panel Board Supply, Stocking & Hanging
-                  </td>
-                  <td className="px-3 py-2.5 text-slate-600 text-[11px]">
+                  </TableCell>
+                  <TableCell className="text-zinc-600 text-[11px]">
                     {takeoff.totalBoardArea.toLocaleString()} {areaUnit} substrate hung to framing per ASTM C840
-                  </td>
-                  <td className="px-3 py-2.5 text-right font-mono font-bold text-slate-900">
+                  </TableCell>
+                  <TableCell className="text-right font-mono tabular-nums font-semibold text-zinc-900">
                     {sym}{((drywallCost + (hangingTask?.burdenedLaborCost || 0)) * 1.25).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </td>
-                </tr>
-                <tr>
-                  <td className="px-3 py-2.5 text-center font-bold text-slate-400">02</td>
-                  <td className="px-3 py-2.5 font-medium text-slate-900">
+                  </TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="text-center font-bold text-zinc-400">02</TableCell>
+                  <TableCell className="font-medium text-zinc-900">
                     Joint Treatment, Corner Bead & GA-214 Finishing
-                  </td>
-                  <td className="px-3 py-2.5 text-slate-600 text-[11px]">
+                  </TableCell>
+                  <TableCell className="text-zinc-600 text-[11px]">
                     Tape, compound, corner bead, and multi-coat finishing per specified Levels 1-5
-                  </td>
-                  <td className="px-3 py-2.5 text-right font-mono font-bold text-slate-900">
+                  </TableCell>
+                  <TableCell className="text-right font-mono tabular-nums font-semibold text-zinc-900">
                     {sym}{((finishingMaterialsCost + (finishingTask?.burdenedLaborCost || 0)) * 1.25).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </td>
-                </tr>
-                <tr>
-                  <td className="px-3 py-2.5 text-center font-bold text-slate-400">03</td>
-                  <td className="px-3 py-2.5 font-medium text-slate-900">
+                  </TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="text-center font-bold text-zinc-400">03</TableCell>
+                  <TableCell className="font-medium text-zinc-900">
                     PVA Drywall Primer & Architectural Finish Coating
-                  </td>
-                  <td className="px-3 py-2.5 text-slate-600 text-[11px]">
+                  </TableCell>
+                  <TableCell className="text-zinc-600 text-[11px]">
                     {takeoff.totalPaintArea.toLocaleString()} {areaUnit} unsealed sealer/primer + specified finish coats
-                  </td>
-                  <td className="px-3 py-2.5 text-right font-mono font-bold text-slate-900">
+                  </TableCell>
+                  <TableCell className="text-right font-mono tabular-nums font-semibold text-zinc-900">
                     {sym}{((paintMaterialsCost + (paintingTask?.burdenedLaborCost || 0)) * 1.25).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </td>
-                </tr>
-                <tr>
-                  <td className="px-3 py-2.5 text-center font-bold text-slate-400">04</td>
-                  <td className="px-3 py-2.5 font-medium text-slate-900">
+                  </TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="text-center font-bold text-zinc-400">04</TableCell>
+                  <TableCell className="font-medium text-zinc-900">
                     Jobsite Protection, Equipment & Daily Scrap Haul-Off
-                  </td>
-                  <td className="px-3 py-2.5 text-slate-600 text-[11px]">
+                  </TableCell>
+                  <TableCell className="text-zinc-600 text-[11px]">
                     Dumpsters, floor protection, scaffold/lift safety allowances, broom-clean finish
-                  </td>
-                  <td className="px-3 py-2.5 text-right font-mono font-bold text-slate-900">
+                  </TableCell>
+                  <TableCell className="text-right font-mono tabular-nums font-semibold text-zinc-900">
                     {sym}${(takeoff.dumpAndEquipmentFee * 1.25).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
           </div>
 
           {/* Grand Total Box */}
           <div className="mt-4 flex justify-end">
-            <div className="bg-slate-900 text-white rounded-lg p-3.5 px-6 flex items-center gap-6">
-              <span className="text-xs uppercase tracking-wider text-slate-300 font-bold">
+            <div className="bg-zinc-900 text-white rounded-[5px] p-3 px-5 flex items-center gap-6">
+              <span className="text-[11px] uppercase tracking-wider text-zinc-400 font-semibold">
                 Total Contract Bid Sum:
               </span>
-              <span className="text-xl font-black text-amber-400 tracking-tight font-mono">
+              <span className="text-lg font-bold tracking-tight font-mono tabular-nums text-white">
                 {sym}{takeoff.totalBidPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
@@ -336,44 +355,32 @@ export const ProposalView: React.FC<ProposalViewProps> = ({
         </div>
 
         {/* Section 3: Payment Terms & Inclusions */}
-        <div className="my-6 pt-4 border-t border-slate-200 text-xs text-slate-600 space-y-2">
-          <h4 className="font-bold text-slate-900 uppercase text-[10px] tracking-wider">
+        <div className="my-6 pt-4 border-t border-zinc-200 text-xs text-zinc-600 space-y-1.5">
+          <h4 className="font-semibold text-zinc-900 uppercase text-[10px] tracking-wider">
             Terms of Payment & Warranty
           </h4>
-          <p className="leading-relaxed">
+          <p className="leading-relaxed text-[11px]">
             {company.paymentTerms ||
               '30% Deposit upon contract signing and mobilization; 40% upon completion of drywall hanging and first coat taping; 30% upon final sanding, painting inspection and sign-off. All work completed in strict accordance with ASTM C840 and Gypsum Association GA-214 standards.'}
           </p>
         </div>
 
         {/* Section 4: Signature Lines */}
-        <div className="mt-10 pt-6 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-8 text-xs">
+        <div className="mt-8 pt-6 border-t border-zinc-200 grid grid-cols-1 sm:grid-cols-2 gap-8 text-xs">
           <div>
-            <div className="border-b border-slate-400 pb-1 mb-1 font-bold text-slate-900">
+            <div className="border-b border-zinc-300 pb-1 mb-1 font-semibold text-zinc-900">
               {isPro && company.companyName ? company.companyName : 'Authorized Drywall Subcontractor'}
             </div>
-            <div className="text-[10px] text-slate-500">Authorized Signature & Date</div>
+            <div className="text-[10px] text-zinc-500">Authorized Signature & Date</div>
           </div>
 
           <div>
-            <div className="border-b border-slate-400 pb-1 mb-1 font-bold text-slate-900">
+            <div className="border-b border-zinc-300 pb-1 mb-1 font-semibold text-zinc-900">
               {client.clientName || 'Client / General Contractor'}
             </div>
-            <div className="text-[10px] text-slate-500">Approval & Notice to Proceed Signature & Date</div>
+            <div className="text-[10px] text-zinc-500">Approval & Notice to Proceed Signature & Date</div>
           </div>
         </div>
-      </div>
-
-      {/* Floating Download PDF Trigger Bar */}
-      <div className="flex justify-end gap-3 pt-2">
-        <button
-          type="button"
-          onClick={onDownloadPDF}
-          className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-6 py-3 rounded-xl shadow-lg shadow-amber-500/20 text-sm transition-all active:scale-95"
-        >
-          <FileDown className="w-5 h-5" />
-          <span>Download PDF Bid Proposal</span>
-        </button>
       </div>
     </div>
   );

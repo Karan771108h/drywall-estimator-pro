@@ -4,13 +4,18 @@ import type {
   UnitSystem,
   FinishLevel,
   SubstrateType,
-} from '../engine/types';
+} from '@/engine/types';
 import {
   FINISH_LEVEL_DESCRIPTIONS,
   SUBSTRATE_NAMES,
-} from '../engine/types';
-import { getBoardRecommendation } from '../engine/takeoff';
-import { Trash2, Info, Layers, CheckCircle2 } from 'lucide-react';
+} from '@/engine/types';
+import { getBoardRecommendation } from '@/engine/takeoff';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Trash2, Layers } from 'lucide-react';
 
 interface RoomCardProps {
   room: Room;
@@ -114,269 +119,265 @@ export const RoomCard: React.FC<RoomCardProps> = ({
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 hover:border-slate-700/80 rounded-xl p-5 shadow-lg transition-all">
-      {/* Header Row */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
-        <div className="flex items-center gap-2.5 w-full sm:w-auto">
-          <span className="flex items-center justify-center w-6 h-6 rounded-md bg-amber-500/20 text-amber-400 font-bold text-xs border border-amber-500/30">
-            {index + 1}
-          </span>
-          <input
-            type="text"
-            value={room.name}
-            onChange={(e) => onUpdate({ ...room, name: e.target.value })}
-            className="bg-slate-800/80 border border-slate-700 font-semibold text-sm text-white px-2.5 py-1 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400 w-full sm:w-56"
-            placeholder="Room Name"
-          />
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
-          {/* Presets */}
-          <select
-            onChange={(e) => {
-              applyPreset(e.target.value);
-              e.target.value = '';
-            }}
-            defaultValue=""
-            className="bg-slate-800 border border-slate-700 text-xs text-slate-300 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400"
-          >
-            <option value="" disabled>
-              Load Trade Preset...
-            </option>
-            <option value="living_l5">Great Room (Level 5 Skim)</option>
-            <option value="bed_l4">Master Bedroom (Level 4 Standard)</option>
-            <option value="garage_l2">Garage (Level 2 Fire-Code Type X)</option>
-            <option value="bath_moisture">Bathroom (Moisture Resistant)</option>
-          </select>
-
-          {/* Delete Button */}
-          <button
-            type="button"
-            onClick={() => onRemove(room.id)}
-            className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
-            title="Remove Room"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Geometry Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3 my-4">
-        <div>
-          <label className="block text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1">
-            Length ({unitLabel})
-          </label>
-          <input
-            type="number"
-            min="1"
-            step="0.1"
-            value={room.length || ''}
-            onChange={(e) => onUpdate({ ...room, length: parseFloat(e.target.value) || 0 })}
-            className="w-full bg-slate-800 border border-slate-700 text-slate-100 text-xs font-semibold rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-amber-400"
-          />
-        </div>
-
-        <div>
-          <label className="block text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1">
-            Width ({unitLabel})
-          </label>
-          <input
-            type="number"
-            min="1"
-            step="0.1"
-            value={room.width || ''}
-            onChange={(e) => onUpdate({ ...room, width: parseFloat(e.target.value) || 0 })}
-            className="w-full bg-slate-800 border border-slate-700 text-slate-100 text-xs font-semibold rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-amber-400"
-          />
-        </div>
-
-        <div>
-          <label className="block text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1">
-            Height ({unitLabel})
-          </label>
-          <input
-            type="number"
-            min="1"
-            step="0.1"
-            value={room.height || ''}
-            onChange={(e) => onUpdate({ ...room, height: parseFloat(e.target.value) || 0 })}
-            className="w-full bg-slate-800 border border-slate-700 text-slate-100 text-xs font-semibold rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-amber-400"
-          />
-        </div>
-
-        <div>
-          <label className="block text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1">
-            Outside Corners
-          </label>
-          <input
-            type="number"
-            min="0"
-            value={room.outsideCorners}
-            onChange={(e) => onUpdate({ ...room, outsideCorners: parseInt(e.target.value) || 0 })}
-            className="w-full bg-slate-800 border border-slate-700 text-slate-100 text-xs font-semibold rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-amber-400"
-            title="Outside 90 deg corners for corner bead"
-          />
-        </div>
-
-        <div>
-          <label className="block text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1">
-            Doors (Hung Solid)
-          </label>
-          <input
-            type="number"
-            min="0"
-            value={room.doors}
-            onChange={(e) => onUpdate({ ...room, doors: parseInt(e.target.value) || 0 })}
-            className="w-full bg-slate-800 border border-slate-700 text-slate-100 text-xs font-semibold rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-amber-400"
-          />
-        </div>
-
-        <div>
-          <label className="block text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1">
-            Windows
-          </label>
-          <input
-            type="number"
-            min="0"
-            value={room.windows}
-            onChange={(e) => onUpdate({ ...room, windows: parseInt(e.target.value) || 0 })}
-            className="w-full bg-slate-800 border border-slate-700 text-slate-100 text-xs font-semibold rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-amber-400"
-          />
-        </div>
-
-        <div className="flex flex-col justify-end">
-          <label className="flex items-center gap-2 cursor-pointer bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 hover:bg-slate-750">
-            <input
-              type="checkbox"
-              checked={room.includeCeiling}
-              onChange={(e) => onUpdate({ ...room, includeCeiling: e.target.checked })}
-              className="rounded text-amber-500 focus:ring-amber-400"
+    <Card className="hover:border-zinc-300 transition-colors">
+      <CardContent className="p-4 sm:p-5 space-y-4">
+        {/* Top Header Row */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 pb-3 border-b border-zinc-100">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <span className="flex items-center justify-center w-5 h-5 rounded-[4px] bg-zinc-100 text-zinc-700 font-semibold text-[11px] border border-zinc-200">
+              {index + 1}
+            </span>
+            <Input
+              type="text"
+              value={room.name}
+              onChange={(e) => onUpdate({ ...room, name: e.target.value })}
+              className="h-7 text-xs font-semibold text-zinc-900 w-full sm:w-60 focus-visible:ring-1"
+              placeholder="Room Name"
             />
-            <span className="font-medium">Ceiling</span>
-          </label>
-        </div>
-      </div>
+          </div>
 
-      {/* Substrate & Finish Level Selection */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 pt-3 border-t border-slate-800/80">
-        {/* Substrate & Paint Coats (5 cols) */}
-        <div className="lg:col-span-5 space-y-3">
-          <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1 flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5 text-amber-400" />
-              Gypsum Board Substrate
-            </label>
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
             <select
-              value={room.substrate}
-              onChange={(e) => onUpdate({ ...room, substrate: e.target.value as SubstrateType })}
-              className="w-full bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded-lg px-3 py-2 font-medium focus:outline-none focus:ring-1 focus:ring-amber-400"
+              onChange={(e) => {
+                applyPreset(e.target.value);
+                e.target.value = '';
+              }}
+              defaultValue=""
+              className="h-7 rounded-[5px] border border-zinc-200 bg-white px-2 text-[11px] font-medium text-zinc-600 focus:outline-none focus:ring-1 focus:ring-zinc-950"
             >
-              {(Object.keys(SUBSTRATE_NAMES) as SubstrateType[]).map((key) => (
-                <option key={key} value={key}>
-                  {SUBSTRATE_NAMES[key]}
-                </option>
-              ))}
+              <option value="" disabled>
+                Load Trade Preset...
+              </option>
+              <option value="living_l5">Great Room (Level 5 Skim)</option>
+              <option value="bed_l4">Master Bedroom (Level 4 Standard)</option>
+              <option value="garage_l2">Garage (Level 2 Type X)</option>
+              <option value="bath_moisture">Bathroom (Moisture Resistant)</option>
             </select>
+
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => onRemove(room.id)}
+              className="text-zinc-400 hover:text-red-600 hover:bg-red-50"
+              title="Remove Room"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Geometry Dimensions Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5">
+          <div>
+            <label className="block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">
+              Length ({unitLabel})
+            </label>
+            <Input
+              type="number"
+              min="1"
+              step="0.1"
+              value={room.length || ''}
+              onChange={(e) => onUpdate({ ...room, length: parseFloat(e.target.value) || 0 })}
+              className="tabular-nums"
+            />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1">
-              Architectural Paint Finish Coats
+            <label className="block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">
+              Width ({unitLabel})
             </label>
-            <div className="grid grid-cols-3 gap-2">
-              {[1, 2, 3].map((coats) => (
-                <button
-                  key={coats}
-                  type="button"
-                  onClick={() => onUpdate({ ...room, paintCoats: coats })}
-                  className={`py-1.5 px-2 text-xs rounded-lg border font-medium transition-colors ${
-                    room.paintCoats === coats
-                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 font-bold'
-                      : 'bg-slate-800/60 text-slate-400 border-slate-700 hover:text-white'
-                  }`}
-                >
-                  {coats} {coats === 1 ? 'Coat' : 'Coats'}
-                </button>
-              ))}
+            <Input
+              type="number"
+              min="1"
+              step="0.1"
+              value={room.width || ''}
+              onChange={(e) => onUpdate({ ...room, width: parseFloat(e.target.value) || 0 })}
+              className="tabular-nums"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">
+              Height ({unitLabel})
+            </label>
+            <Input
+              type="number"
+              min="1"
+              step="0.1"
+              value={room.height || ''}
+              onChange={(e) => onUpdate({ ...room, height: parseFloat(e.target.value) || 0 })}
+              className="tabular-nums"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">
+              Corners (90°)
+            </label>
+            <Input
+              type="number"
+              min="0"
+              value={room.outsideCorners}
+              onChange={(e) => onUpdate({ ...room, outsideCorners: parseInt(e.target.value) || 0 })}
+              className="tabular-nums"
+              title="Outside 90 deg corners for corner bead"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">
+              Doors (Solid)
+            </label>
+            <Input
+              type="number"
+              min="0"
+              value={room.doors}
+              onChange={(e) => onUpdate({ ...room, doors: parseInt(e.target.value) || 0 })}
+              className="tabular-nums"
+              title="Not deducted from drywall board; deducted from paint"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">
+              Windows
+            </label>
+            <Input
+              type="number"
+              min="0"
+              value={room.windows}
+              onChange={(e) => onUpdate({ ...room, windows: parseInt(e.target.value) || 0 })}
+              className="tabular-nums"
+            />
+          </div>
+
+          <div className="flex flex-col justify-end">
+            <div className="flex items-center justify-between h-8 px-2.5 rounded-[6px] border border-zinc-200 bg-zinc-50/60">
+              <span className="text-[11px] font-medium text-zinc-700">Ceiling</span>
+              <Switch
+                checked={room.includeCeiling}
+                onCheckedChange={(checked) => onUpdate({ ...room, includeCeiling: checked })}
+              />
             </div>
           </div>
         </div>
 
-        {/* GA-214 Finish Level Selector (7 cols) */}
-        <div className="lg:col-span-7">
-          <label className="block text-xs font-medium text-slate-400 mb-1 flex items-center justify-between">
-            <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-amber-400" />
-              Gypsum Association GA-214 Finish Level
-            </span>
-            <span className="text-[11px] text-amber-400 font-semibold">
-              Level {room.finishLevel}: {FINISH_LEVEL_DESCRIPTIONS[room.finishLevel].tag}
-            </span>
-          </label>
-
-          {/* Level Buttons */}
-          <div className="grid grid-cols-5 gap-1.5">
-            {([1, 2, 3, 4, 5] as FinishLevel[]).map((lvl) => {
-              const isActive = room.finishLevel === lvl;
-              return (
-                <button
-                  key={lvl}
-                  type="button"
-                  onClick={() => onUpdate({ ...room, finishLevel: lvl })}
-                  className={`p-2 rounded-lg border text-center transition-all ${
-                    isActive
-                      ? 'bg-amber-500 text-slate-950 border-amber-400 font-bold shadow-md shadow-amber-500/20 scale-[1.02]'
-                      : 'bg-slate-800/80 text-slate-300 border-slate-700/80 hover:bg-slate-750'
-                  }`}
-                >
-                  <div className="text-xs font-black">Lvl {lvl}</div>
-                  <div className={`text-[9px] line-clamp-1 ${isActive ? 'text-slate-900 font-bold' : 'text-slate-400'}`}>
-                    {lvl === 1 ? 'Fire-Tape' : lvl === 2 ? 'Garage' : lvl === 3 ? 'Texture' : lvl === 4 ? 'Standard' : 'Skim'}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Active Level Detail Box */}
-          <div className="mt-2.5 p-2.5 rounded-lg bg-slate-950/60 border border-slate-800 text-[11px] space-y-1">
-            <div className="text-slate-300 font-medium leading-tight">
-              {FINISH_LEVEL_DESCRIPTIONS[room.finishLevel].description}
+        {/* Substrate & Finish Level Selection */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 pt-2 border-t border-zinc-100">
+          {/* Substrate & Paint Coats */}
+          <div className="lg:col-span-5 space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-zinc-700 mb-1 flex items-center gap-1.5">
+                <Layers className="h-3.5 w-3.5 text-zinc-500" />
+                Gypsum Board Substrate
+              </label>
+              <select
+                value={room.substrate}
+                onChange={(e) => onUpdate({ ...room, substrate: e.target.value as SubstrateType })}
+                className="w-full h-8 rounded-[6px] border border-zinc-200 bg-white px-2.5 text-xs text-zinc-900 font-medium focus:outline-none focus:ring-1 focus:ring-zinc-950"
+              >
+                {(Object.keys(SUBSTRATE_NAMES) as SubstrateType[]).map((key) => (
+                  <option key={key} value={key}>
+                    {SUBSTRATE_NAMES[key]}
+                  </option>
+                ))}
+              </select>
             </div>
-            <div className="text-slate-400 text-[10px]">
-              <span className="text-amber-400/90 font-semibold">Best For: </span>
-              {FINISH_LEVEL_DESCRIPTIONS[room.finishLevel].bestFor}
+
+            <div>
+              <label className="block text-xs font-medium text-zinc-700 mb-1">
+                Paint Finish Coats
+              </label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {[1, 2, 3].map((coats) => (
+                  <button
+                    key={coats}
+                    type="button"
+                    onClick={() => onUpdate({ ...room, paintCoats: coats })}
+                    className={`py-1 text-xs rounded-[5px] border font-medium transition-colors ${
+                      room.paintCoats === coats
+                        ? 'bg-zinc-900 text-white border-zinc-900'
+                        : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50'
+                    }`}
+                  >
+                    {coats} {coats === 1 ? 'Coat' : 'Coats'}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Live Room Takeoff Footer Pills */}
-      <div className="mt-4 pt-3 border-t border-slate-800/60 flex flex-wrap items-center justify-between gap-2 text-xs">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="bg-slate-800 text-slate-300 px-2.5 py-1 rounded-md border border-slate-700">
-            Board Area: <strong className="text-white">{Math.round(totalBoardArea)}</strong> {areaUnit}
-          </span>
-          <span className="bg-slate-800 text-slate-300 px-2.5 py-1 rounded-md border border-slate-700" title="Doors & Windows deducted">
-            Net Paint: <strong className="text-white">{Math.round(netPaintArea)}</strong> {areaUnit}
-          </span>
-          {cornerBeadLinear > 0 && (
-            <span className="bg-slate-800 text-slate-300 px-2.5 py-1 rounded-md border border-slate-700">
-              Corner Bead: <strong className="text-white">{cornerBeadLinear}</strong> {unitLabel}
-            </span>
-          )}
+          {/* GA-214 Finish Level Selector */}
+          <div className="lg:col-span-7">
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-medium text-zinc-700">
+                Gypsum Association GA-214 Finish Level
+              </label>
+              <span className="text-[11px] font-semibold text-zinc-900">
+                Level {room.finishLevel}: {FINISH_LEVEL_DESCRIPTIONS[room.finishLevel].tag}
+              </span>
+            </div>
+
+            {/* Level Buttons */}
+            <div className="grid grid-cols-5 gap-1.5">
+              {([1, 2, 3, 4, 5] as FinishLevel[]).map((lvl) => {
+                const isActive = room.finishLevel === lvl;
+                return (
+                  <button
+                    key={lvl}
+                    type="button"
+                    onClick={() => onUpdate({ ...room, finishLevel: lvl })}
+                    className={`p-1.5 rounded-[5px] border text-center transition-all ${
+                      isActive
+                        ? 'bg-zinc-900 text-white border-zinc-900 font-semibold shadow-2xs'
+                        : 'bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100'
+                    }`}
+                  >
+                    <div className="text-xs font-bold leading-tight">L{lvl}</div>
+                    <div className={`text-[9px] line-clamp-1 ${isActive ? 'text-zinc-200' : 'text-zinc-500'}`}>
+                      {lvl === 1 ? 'Fire-Tape' : lvl === 2 ? 'Garage' : lvl === 3 ? 'Texture' : lvl === 4 ? 'Standard' : 'Skim'}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Level Detail Box */}
+            <div className="mt-2 p-2 rounded-[5px] bg-zinc-50 border border-zinc-200/80 text-[11px] space-y-0.5">
+              <div className="text-zinc-700 font-normal leading-tight">
+                {FINISH_LEVEL_DESCRIPTIONS[room.finishLevel].description}
+              </div>
+              <div className="text-zinc-500 text-[10px]">
+                <strong className="text-zinc-700">Best for:</strong> {FINISH_LEVEL_DESCRIPTIONS[room.finishLevel].bestFor}
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="bg-amber-500/10 text-amber-300 border border-amber-500/30 px-3 py-1 rounded-md font-medium text-xs flex items-center gap-1.5">
-            <Info className="w-3.5 h-3.5 text-amber-400" />
-            <span>
-              {boardRec.boardName.split(' - ')[0]}: <strong>{sheetsNeeded} sheets</strong> (paired bundle)
+        {/* Live Metrics Footer Pills */}
+        <div className="pt-2.5 border-t border-zinc-100 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="px-2 py-0.5 rounded-[4px] bg-zinc-50 border border-zinc-200 text-zinc-600 text-[11px]">
+              Board Scope: <strong className="text-zinc-900 tabular-nums">{Math.round(totalBoardArea).toLocaleString()}</strong> {areaUnit}
             </span>
-          </span>
+            <span className="px-2 py-0.5 rounded-[4px] bg-zinc-50 border border-zinc-200 text-zinc-600 text-[11px]" title="Doors & Windows deducted">
+              Net Paint: <strong className="text-zinc-900 tabular-nums">{Math.round(netPaintArea).toLocaleString()}</strong> {areaUnit}
+            </span>
+            {cornerBeadLinear > 0 && (
+              <span className="px-2 py-0.5 rounded-[4px] bg-zinc-50 border border-zinc-200 text-zinc-600 text-[11px]">
+                Corner Bead: <strong className="text-zinc-900 tabular-nums">{cornerBeadLinear}</strong> {unitLabel}
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <Badge variant="secondary" className="font-medium text-[11px] text-zinc-700">
+              {boardRec.boardName.split(' - ')[0]}: <span className="font-bold text-zinc-900 tabular-nums ml-1">{sheetsNeeded} sheets</span>
+            </Badge>
+          </div>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };
