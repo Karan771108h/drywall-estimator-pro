@@ -14,6 +14,12 @@ import {
   DEFAULT_MATERIAL_RATES_METRIC,
   DEFAULT_LABOR_RATES,
 } from '@/engine/takeoff';
+import {
+  loadStoredLicense,
+  saveStoredLicense,
+  clearStoredLicense,
+  type StoredLicenseReceipt,
+} from '@/services/license';
 import { Header } from '@/components/Header';
 import { RoomCard } from '@/components/RoomCard';
 import { TakeoffSummary } from '@/components/TakeoffSummary';
@@ -110,19 +116,27 @@ export function App() {
     return saved ? JSON.parse(saved) : INITIAL_CLIENT;
   });
 
-  const [isPro, setIsPro] = useState<boolean>(() => {
-    return localStorage.getItem('drywallpro_is_pro') === 'true';
-  });
-
-  const [licenseKey, setLicenseKey] = useState<string>(() => {
-    return localStorage.getItem('drywallpro_license_key') || '';
-  });
+  // Strict Free Mode default for new visitors
+  const [isPro, setIsPro] = useState<boolean>(false);
+  const [licenseKey, setLicenseKey] = useState<string>('');
 
   const [activeTab, setActiveTab] = useState<'takeoff' | 'proposal'>('takeoff');
   const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false);
   const [isProModalOpen, setIsProModalOpen] = useState(false);
 
-  // Sync to localStorage
+  // Initialize and verify license with cryptographic signature on mount
+  useEffect(() => {
+    loadStoredLicense().then((result) => {
+      setIsPro(result.isPro);
+      if (result.receipt) {
+        setLicenseKey(result.receipt.licenseKey);
+      } else {
+        setLicenseKey('');
+      }
+    });
+  }, []);
+
+  // Sync general state to localStorage
   useEffect(() => {
     localStorage.setItem('drywallpro_settings', JSON.stringify(settings));
   }, [settings]);
@@ -147,14 +161,6 @@ export function App() {
     localStorage.setItem('drywallpro_client', JSON.stringify(client));
   }, [client]);
 
-  useEffect(() => {
-    localStorage.setItem('drywallpro_is_pro', String(isPro));
-  }, [isPro]);
-
-  useEffect(() => {
-    localStorage.setItem('drywallpro_license_key', licenseKey);
-  }, [licenseKey]);
-
   // Unit switch handler
   const handleUnitChange = (newUnit: 'imperial' | 'metric') => {
     if (newUnit === settings.unitSystem) return;
@@ -164,18 +170,15 @@ export function App() {
     );
   };
 
-  // Pro Key Activation
-  const handleActivateKey = (key: string): boolean => {
-    const cleaned = key.trim().toUpperCase();
-    if (cleaned.length >= 8) {
-      setIsPro(true);
-      setLicenseKey(cleaned);
-      return true;
-    }
-    return false;
+  // License Handlers
+  const handleActivateSuccess = (receipt: StoredLicenseReceipt) => {
+    saveStoredLicense(receipt);
+    setIsPro(true);
+    setLicenseKey(receipt.licenseKey);
   };
 
   const handleDeactivatePro = () => {
+    clearStoredLicense();
     setIsPro(false);
     setLicenseKey('');
   };
@@ -212,7 +215,7 @@ export function App() {
     setRooms((prev) => prev.filter((r) => r.id !== id));
   };
 
-  // Core Pure Takeoff Result (BOM & labor math untouched)
+  // Core Pure Takeoff Result
   const takeoffResult = useMemo(() => {
     return calculateTakeoff(rooms, settings, materialRates, laborRates);
   }, [rooms, settings, materialRates, laborRates]);
@@ -367,7 +370,7 @@ export function App() {
         onClose={() => setIsProModalOpen(false)}
         isPro={isPro}
         licenseKey={licenseKey}
-        onActivateKey={handleActivateKey}
+        onActivateSuccess={handleActivateSuccess}
         onDeactivate={handleDeactivatePro}
         company={company}
         onCompanyChange={setCompany}

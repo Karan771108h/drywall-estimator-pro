@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
 import type { CompanyProfile } from '@/engine/types';
 import {
+  GUMROAD_PRODUCT_URL,
+  verifyGumroadLicense,
+  type StoredLicenseReceipt,
+} from '@/services/license';
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -11,14 +16,24 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, CheckCircle2, Upload, Trash2, KeyRound } from 'lucide-react';
+import {
+  Sparkles,
+  CheckCircle2,
+  Upload,
+  Trash2,
+  KeyRound,
+  ExternalLink,
+  Loader2,
+  ShieldCheck,
+  AlertCircle,
+} from 'lucide-react';
 
 interface ProLicenseModalProps {
   isOpen: boolean;
   onClose: () => void;
   isPro: boolean;
   licenseKey: string;
-  onActivateKey: (key: string) => boolean;
+  onActivateSuccess: (receipt: StoredLicenseReceipt) => void;
   onDeactivate: () => void;
   company: CompanyProfile;
   onCompanyChange: (profile: CompanyProfile) => void;
@@ -29,30 +44,39 @@ export const ProLicenseModal: React.FC<ProLicenseModalProps> = ({
   onClose,
   isPro,
   licenseKey,
-  onActivateKey,
+  onActivateSuccess,
   onDeactivate,
   company,
   onCompanyChange,
 }) => {
   const [inputKey, setInputKey] = useState(licenseKey);
+  const [isVerifying, setIsVerifying] = useState(false);
   const [keyError, setKeyError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  const handleKeySubmit = (e: React.FormEvent) => {
+  const handleKeySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setKeyError('');
     setSuccessMessage('');
 
     if (!inputKey.trim()) {
-      setKeyError('Please enter a valid license key.');
+      setKeyError('Please enter a valid Gumroad license key.');
       return;
     }
 
-    const success = onActivateKey(inputKey.trim());
-    if (success) {
-      setSuccessMessage('Pro license successfully verified! Branded PDFs unlocked.');
-    } else {
-      setKeyError('Invalid license key. Use any standard key like "DRYWALLPRO-2026" or "GUM-XXXX".');
+    setIsVerifying(true);
+    try {
+      const result = await verifyGumroadLicense(inputKey.trim());
+      if (result.success && result.receipt) {
+        setSuccessMessage('License verified successfully! Commercial un-watermarked PDFs unlocked.');
+        onActivateSuccess(result.receipt);
+      } else {
+        setKeyError(result.message || 'Invalid license key. Please check and try again.');
+      }
+    } catch {
+      setKeyError('Unable to connect to verification server. Please verify your internet connection.');
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -83,17 +107,38 @@ export const ProLicenseModal: React.FC<ProLicenseModalProps> = ({
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-zinc-900" />
             <DialogTitle>
-              {isPro ? 'Pro Contractor Profile & License' : 'Unlock Pro Contractor Proposals'}
+              {isPro ? 'Pro Commercial License & Profile' : 'Unlock Pro Commercial Edition'}
             </DialogTitle>
           </div>
           <DialogDescription>
-            Generate clean, un-watermarked PDF quotes with custom logo, contractor license #, and payment terms.
+            Unlock un-watermarked client-ready PDF quotes, custom contractor branding, and company logo insertion.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-2 text-xs">
-          {/* License Activation Box */}
-          <div className="rounded-[6px] border border-zinc-200 bg-zinc-50/60 p-3.5 space-y-2">
+        <div className="space-y-4 py-1 text-xs">
+          {/* Purchase CTA Banner for Free Users */}
+          {!isPro && (
+            <div className="rounded-[6px] border border-zinc-200 bg-zinc-50 p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="space-y-0.5">
+                <div className="font-semibold text-zinc-900 flex items-center gap-1.5">
+                  <ShieldCheck className="h-4 w-4 text-zinc-700" />
+                  Commercial Lifetime License
+                </div>
+                <div className="text-[11px] text-zinc-500">
+                  Instant license key delivery via Gumroad. One-time payment ($29).
+                </div>
+              </div>
+              <Button asChild size="sm" className="shrink-0 gap-1 font-medium">
+                <a href={GUMROAD_PRODUCT_URL} target="_blank" rel="noopener noreferrer">
+                  <span>Buy Commercial License ($29)</span>
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </Button>
+            </div>
+          )}
+
+          {/* License Activation Form */}
+          <div className="rounded-[6px] border border-zinc-200 bg-white p-3.5 space-y-2.5">
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-zinc-900 flex items-center gap-1.5">
                 <KeyRound className="h-3.5 w-3.5 text-zinc-600" />
@@ -112,29 +157,49 @@ export const ProLicenseModal: React.FC<ProLicenseModalProps> = ({
                 type="text"
                 value={inputKey}
                 onChange={(e) => setInputKey(e.target.value)}
-                placeholder="Enter Gumroad key (e.g. DRYWALLPRO-2026)"
+                placeholder="Enter license key (e.g. XXXXXXXX-XXXXXXXX-...)"
                 className="font-mono text-xs"
+                disabled={isVerifying}
               />
-              <Button type="submit" size="sm" className="shrink-0 font-medium">
-                {isPro ? 'Update' : 'Activate'}
+              <Button type="submit" size="sm" disabled={isVerifying} className="shrink-0 font-medium min-w-20">
+                {isVerifying ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span className="sr-only">Verifying...</span>
+                  </>
+                ) : isPro ? (
+                  'Re-verify'
+                ) : (
+                  'Activate'
+                )}
               </Button>
             </form>
 
-            {keyError && <div className="text-red-600 text-[11px] font-medium">{keyError}</div>}
-            {successMessage && <div className="text-emerald-700 text-[11px] font-medium">{successMessage}</div>}
+            {keyError && (
+              <div className="flex items-start gap-1.5 text-red-600 text-[11px] font-medium pt-0.5">
+                <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                <span>{keyError}</span>
+              </div>
+            )}
 
-            <div className="text-[11px] text-zinc-500 flex items-center justify-between pt-1">
-              <span>Test Key: <code className="text-zinc-800 font-mono font-semibold">DRYWALLPRO-2026</code></span>
-              {isPro && (
+            {successMessage && (
+              <div className="flex items-center gap-1.5 text-emerald-700 text-[11px] font-medium pt-0.5">
+                <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                <span>{successMessage}</span>
+              </div>
+            )}
+
+            {isPro && (
+              <div className="pt-1 flex justify-end">
                 <button
                   type="button"
                   onClick={onDeactivate}
-                  className="text-red-600 hover:underline cursor-pointer"
+                  className="text-red-600 hover:underline text-[11px] cursor-pointer"
                 >
-                  Deactivate Pro
+                  Deactivate License (Switch to Free Mode)
                 </button>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* Contractor Company Profile Form */}
@@ -176,7 +241,7 @@ export const ProLicenseModal: React.FC<ProLicenseModalProps> = ({
                   </label>
                 )}
                 <span className="text-[11px] text-zinc-400">
-                  Appears on the header of the exported proposal PDF.
+                  Embeds in the header of the exported proposal PDF.
                 </span>
               </div>
             </div>
