@@ -26,18 +26,20 @@ export interface StoredLicenseReceipt {
 }
 
 export const GUMROAD_PRODUCT_ID =
-  (import.meta.env.VITE_GUMROAD_PRODUCT_ID as string) || 'YOUR_GUMROAD_PRODUCT_ID';
+  (import.meta.env.VITE_GUMROAD_PRODUCT_ID as string) || 'BrU_80eTAxZhgkxZItYj2g==';
 
 export const GUMROAD_PRODUCT_URL =
-  (import.meta.env.VITE_GUMROAD_PRODUCT_URL as string) || 'https://gumroad.com/l/drywallpro';
+  (import.meta.env.VITE_GUMROAD_PRODUCT_URL as string) ||
+  'https://veloxlogic.gumroad.com/l/drywallprolicense';
 
-export const GUMROAD_VERIFY_ENDPOINT = 'https://api.gumroad.com/v2/licenses/verify';
+export const PAGES_PROXY_ENDPOINT = '/api/verify-license';
+export const DIRECT_GUMROAD_VERIFY_ENDPOINT = 'https://api.gumroad.com/v2/licenses/verify';
 
 const STORAGE_RECEIPT_KEY = 'drywallpro_license_receipt';
 const CLIENT_SALT = 'drywallpro_salt_98421_c840_ga214';
 
 /**
- * Computes a SHA-256 hash using native Web Crypto API
+ * Computes a SHA-256 hash using native Web Crypto API (SubtleCrypto)
  */
 export async function computeSignature(
   key: string,
@@ -62,7 +64,54 @@ export async function computeSignature(
 }
 
 /**
- * Verifies a license key against the official Gumroad API endpoint
+ * Internal parser for Gumroad responses (from either Pages Function or direct API)
+ */
+export async function processGumroadVerificationResponse(
+  data: GumroadVerifyResponse,
+  licenseKey: string
+): Promise<{ success: boolean; message?: string; receipt?: StoredLicenseReceipt }> {
+  if (!data.success) {
+    return {
+      success: false,
+      message: data.message || 'Invalid license key. Please check your purchase receipt.',
+    };
+  }
+
+  const purchase = data.purchase;
+  if (purchase?.refunded) {
+    return {
+      success: false,
+      message: 'This license was refunded and is no longer valid.',
+    };
+  }
+
+  if (purchase?.chargebacked || purchase?.disputed) {
+    return {
+      success: false,
+      message: 'License suspended due to payment dispute.',
+    };
+  }
+
+  const verifiedAt = Date.now();
+  const purchaseId = purchase?.id || `pur_${verifiedAt}`;
+  const email = purchase?.email || '';
+  const signature = await computeSignature(licenseKey, purchaseId, verifiedAt);
+
+  const receipt: StoredLicenseReceipt = {
+    licenseKey,
+    purchaseId,
+    email,
+    verifiedAt,
+    signature,
+  };
+
+  return { success: true, receipt };
+}
+
+/**
+ * Verifies a license key:
+ * 1. Attempts Cloudflare Pages Function proxy (/api/verify-license)
+ * 2. Falls back to direct Gumroad API POST if running in local Vite development mode
  */
 export async function verifyGumroadLicense(
   licenseKey: string,
@@ -73,17 +122,45 @@ export async function verifyGumroadLicense(
     return { success: false, message: 'Please enter a valid license key.' };
   }
 
+  // Attempt 1: Call Cloudflare Pages Functions proxy
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+    const proxyResponse = await fetch(PAGES_PROXY_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        license_key: cleanedKey,
+        product_id: productId,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    // If endpoint exists and responded with JSON
+    if (proxyResponse.status !== 404 && proxyResponse.status !== 405) {
+      const data = (await proxyResponse.json()) as GumroadVerifyResponse;
+      return await processGumroadVerificationResponse(data, cleanedKey);
+    }
+  } catch {
+    // Proxy request failed (network error or 404 in local dev), proceed to direct fallback
+  }
+
+  // Attempt 2: Direct Gumroad API fallback
   try {
     const params = new URLSearchParams();
     params.append('product_id', productId);
     params.append('license_key', cleanedKey);
     params.append('increment_uses_count', 'false');
 
-    // 8-second timeout using AbortController
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-    const response = await fetch(GUMROAD_VERIFY_ENDPOINT, {
+    const directResponse = await fetch(DIRECT_GUMROAD_VERIFY_ENDPOINT, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
@@ -94,44 +171,8 @@ export async function verifyGumroadLicense(
 
     clearTimeout(timeoutId);
 
-    const data = (await response.json()) as GumroadVerifyResponse;
-
-    if (!data.success) {
-      return {
-        success: false,
-        message: data.message || 'That license does not exist for the provided product.',
-      };
-    }
-
-    const purchase = data.purchase;
-    if (purchase?.refunded) {
-      return {
-        success: false,
-        message: 'This license was refunded and is no longer valid.',
-      };
-    }
-
-    if (purchase?.chargebacked || purchase?.disputed) {
-      return {
-        success: false,
-        message: 'This license payment was disputed or charged back.',
-      };
-    }
-
-    const verifiedAt = Date.now();
-    const purchaseId = purchase?.id || `pur_${verifiedAt}`;
-    const email = purchase?.email || '';
-    const signature = await computeSignature(cleanedKey, purchaseId, verifiedAt);
-
-    const receipt: StoredLicenseReceipt = {
-      licenseKey: cleanedKey,
-      purchaseId,
-      email,
-      verifiedAt,
-      signature,
-    };
-
-    return { success: true, receipt };
+    const data = (await directResponse.json()) as GumroadVerifyResponse;
+    return await processGumroadVerificationResponse(data, cleanedKey);
   } catch (error: unknown) {
     if (error instanceof Error && error.name === 'AbortError') {
       return {
@@ -141,7 +182,7 @@ export async function verifyGumroadLicense(
     }
     return {
       success: false,
-      message: 'Network error connecting to Gumroad. Please try again.',
+      message: 'Network error connecting to Gumroad verification server. Please try again.',
     };
   }
 }

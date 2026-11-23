@@ -5,6 +5,8 @@ import {
   saveStoredLicense,
   clearStoredLicense,
   computeSignature,
+  PAGES_PROXY_ENDPOINT,
+  DIRECT_GUMROAD_VERIFY_ENDPOINT,
   type StoredLicenseReceipt,
 } from './license';
 
@@ -28,7 +30,7 @@ describe('License Verification & Anti-Tamper Service', () => {
     vi.restoreAllMocks();
   });
 
-  describe('Default Visitor State', () => {
+  describe('Default Visitor State & Zero-Trust', () => {
     it('defaults new visitors to Free Mode (isPro: false) when localStorage is empty', async () => {
       const state = await loadStoredLicense();
       expect(state.isPro).toBe(false);
@@ -40,36 +42,80 @@ describe('License Verification & Anti-Tamper Service', () => {
       const state = await loadStoredLicense();
       expect(state.isPro).toBe(false);
       expect(state.receipt).toBeNull();
-      // Should also clean up the invalid boolean flag
+      // Should clean up the forged boolean flag
       expect(localStorageMock.getItem('drywallpro_is_pro')).toBeNull();
     });
   });
 
-  describe('Gumroad API Verification', () => {
-    it('activates Pro mode and returns a signed receipt on valid Gumroad response', async () => {
+  describe('Pages Proxy & Direct Gumroad API Verification', () => {
+    it('successfully verifies via Cloudflare Pages proxy (/api/verify-license)', async () => {
       const mockResponse = {
         success: true,
         uses: 1,
         purchase: {
-          id: 'pur_test_987654',
+          id: 'pur_proxy_12345',
           email: 'contractor@drywall.com',
+          created_at: '2026-11-24T00:00:00Z',
+          product_id: 'BrU_80eTAxZhgkxZItYj2g==',
+          product_name: 'DrywallPro Commercial License',
           refunded: false,
           chargebacked: false,
           disputed: false,
         },
       };
 
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => mockResponse,
-      } as unknown as Response);
+      globalThis.fetch = vi.fn().mockImplementation(async (url: string) => {
+        if (url === PAGES_PROXY_ENDPOINT) {
+          return {
+            status: 200,
+            json: async () => mockResponse,
+          } as unknown as Response;
+        }
+        throw new Error('Unexpected URL');
+      });
 
-      const result = await verifyGumroadLicense('GUM-VALID-KEY-1234');
+      const result = await verifyGumroadLicense('GUM-PROXY-KEY-100');
       expect(result.success).toBe(true);
       expect(result.receipt).toBeDefined();
-      expect(result.receipt?.licenseKey).toBe('GUM-VALID-KEY-1234');
-      expect(result.receipt?.purchaseId).toBe('pur_test_987654');
+      expect(result.receipt?.licenseKey).toBe('GUM-PROXY-KEY-100');
+      expect(result.receipt?.purchaseId).toBe('pur_proxy_12345');
+      expect(result.receipt?.email).toBe('contractor@drywall.com');
       expect(result.receipt?.signature).toBeDefined();
+    });
+
+    it('falls back to direct Gumroad API when proxy returns 404 (local Vite dev mode)', async () => {
+      const mockGumroadResponse = {
+        success: true,
+        uses: 1,
+        purchase: {
+          id: 'pur_direct_67890',
+          email: 'direct@buyer.com',
+          refunded: false,
+          chargebacked: false,
+          disputed: false,
+        },
+      };
+
+      globalThis.fetch = vi.fn().mockImplementation(async (url: string) => {
+        if (url === PAGES_PROXY_ENDPOINT) {
+          return {
+            status: 404,
+            json: async () => ({ error: 'Not Found' }),
+          } as unknown as Response;
+        }
+        if (url === DIRECT_GUMROAD_VERIFY_ENDPOINT) {
+          return {
+            status: 200,
+            json: async () => mockGumroadResponse,
+          } as unknown as Response;
+        }
+        throw new Error('Unexpected URL');
+      });
+
+      const result = await verifyGumroadLicense('GUM-DIRECT-KEY-200');
+      expect(result.success).toBe(true);
+      expect(result.receipt).toBeDefined();
+      expect(result.receipt?.purchaseId).toBe('pur_direct_67890');
     });
 
     it('rejects refunded license keys with clear user notification', async () => {
@@ -85,13 +131,13 @@ describe('License Verification & Anti-Tamper Service', () => {
       };
 
       globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: true,
+        status: 200,
         json: async () => mockResponse,
       } as unknown as Response);
 
       const result = await verifyGumroadLicense('GUM-REFUNDED-KEY');
       expect(result.success).toBe(false);
-      expect(result.message).toContain('refunded');
+      expect(result.message).toBe('This license was refunded and is no longer valid.');
       expect(result.receipt).toBeUndefined();
     });
 
@@ -108,29 +154,29 @@ describe('License Verification & Anti-Tamper Service', () => {
       };
 
       globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: true,
+        status: 200,
         json: async () => mockResponse,
       } as unknown as Response);
 
       const result = await verifyGumroadLicense('GUM-DISPUTED-KEY');
       expect(result.success).toBe(false);
-      expect(result.message).toContain('disputed or charged back');
+      expect(result.message).toBe('License suspended due to payment dispute.');
     });
 
     it('handles Gumroad invalid license response', async () => {
       const mockResponse = {
         success: false,
-        message: 'That license does not exist for the provided product.',
+        message: 'Invalid license key. Please check your purchase receipt.',
       };
 
       globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: true,
+        status: 200,
         json: async () => mockResponse,
       } as unknown as Response);
 
       const result = await verifyGumroadLicense('INVALID-KEY');
       expect(result.success).toBe(false);
-      expect(result.message).toBe('That license does not exist for the provided product.');
+      expect(result.message).toBe('Invalid license key. Please check your purchase receipt.');
     });
 
     it('gracefully handles network errors without crashing', async () => {
@@ -143,25 +189,27 @@ describe('License Verification & Anti-Tamper Service', () => {
   });
 
   describe('Anti-Tamper & Cryptographic Receipt Verification', () => {
-    it('successfully loads a validly signed stored receipt', async () => {
-      const key = 'VALID-KEY-555';
-      const purchaseId = 'pur_abc_123';
+    it('successfully loads a validly signed stored receipt (offline validation)', async () => {
+      const key = 'OFFLINE-VALID-KEY';
+      const purchaseId = 'pur_offline_123';
       const verifiedAt = Date.now();
       const signature = await computeSignature(key, purchaseId, verifiedAt);
 
       const validReceipt: StoredLicenseReceipt = {
         licenseKey: key,
         purchaseId,
-        email: 'test@example.com',
+        email: 'jobsite-contractor@field.com',
         verifiedAt,
         signature,
       };
 
       saveStoredLicense(validReceipt);
 
+      // Simulating offline mode where network is unavailable
       const loaded = await loadStoredLicense();
       expect(loaded.isPro).toBe(true);
       expect(loaded.receipt?.licenseKey).toBe(key);
+      expect(loaded.receipt?.purchaseId).toBe(purchaseId);
     });
 
     it('detects tampering and reverts to Free Mode if receipt signature is altered', async () => {
@@ -185,6 +233,28 @@ describe('License Verification & Anti-Tamper Service', () => {
       expect(loaded.receipt).toBeNull();
       // Storage should be cleared
       expect(localStorageMock.getItem('drywallpro_is_pro')).toBeNull();
+    });
+
+    it('detects tampering if licenseKey is modified in stored JSON', async () => {
+      const originalKey = 'ORIGINAL-KEY-1';
+      const purchaseId = 'pur_abc_123';
+      const verifiedAt = Date.now();
+      const validSignature = await computeSignature(originalKey, purchaseId, verifiedAt);
+
+      // Hacker edits licenseKey in localStorage without recomputing signature
+      const tamperedReceipt: StoredLicenseReceipt = {
+        licenseKey: 'MODIFIED-UNLICENSED-KEY',
+        purchaseId,
+        email: 'user@example.com',
+        verifiedAt,
+        signature: validSignature,
+      };
+
+      localStorageMock.setItem('drywallpro_license_receipt', JSON.stringify(tamperedReceipt));
+
+      const loaded = await loadStoredLicense();
+      expect(loaded.isPro).toBe(false);
+      expect(loaded.receipt).toBeNull();
     });
 
     it('clears stored license on clearStoredLicense()', () => {
